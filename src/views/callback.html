@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Naqood OAuth Demo · Authorization callback</title>
+    <style>
+      :root {
+        color: #0f172a;
+        background-color: #f5f6fb;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background-color: #f5f6fb;
+      }
+
+      .page__inner {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 40px 20px 64px;
+      }
+
+      .hero {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 32px;
+      }
+
+      .hero__eyebrow {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+      }
+
+      .hero h1 {
+        font-size: clamp(2rem, 4vw, 2.6rem);
+        margin: 12px 0 8px;
+      }
+
+      .hero__lede {
+        max-width: 640px;
+        color: #475569;
+      }
+
+      .hero__actions {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 11px 22px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition: background-color 120ms ease, border-color 120ms ease;
+      }
+
+      .btn.primary {
+        background: #1d4ed8;
+        color: #fff;
+        border-color: #1d4ed8;
+      }
+
+      .btn.secondary {
+        background: transparent;
+        color: #1d4ed8;
+        border-color: #c7d2fe;
+      }
+
+      .btn.ghost {
+        background: transparent;
+        border-color: #e2e8f0;
+        color: #0f172a;
+      }
+
+      .btn:hover {
+        background-color: #1e40af;
+        color: #fff;
+      }
+
+      .btn.secondary:hover {
+        background-color: #e0e7ff;
+        color: #1d4ed8;
+      }
+
+      .btn.ghost:hover {
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      .app-nav {
+        margin: 28px 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .app-nav__item {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 18px;
+        text-decoration: none;
+        color: inherit;
+        background: #fff;
+      }
+
+      .app-nav__item span {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+      }
+
+      .app-nav__item.is-active {
+        border-color: #1d4ed8;
+        background-color: #eef2ff;
+      }
+
+      .content-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 24px;
+      }
+
+      .card__eyebrow {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        margin-bottom: 8px;
+      }
+
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .status-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+
+      .status-value {
+        font-weight: 600;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #f1f5f9;
+        padding: 6px 14px;
+      }
+
+      .callout {
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 20px 0 0;
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #166534;
+      }
+
+      .code-block {
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 12px;
+        padding: 18px;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      .mini-nav {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .mini-nav a {
+        color: #1d4ed8;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      footer {
+        margin-top: 40px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.9rem;
+      }
+
+      code {
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 2px 4px;
+      }
+
+      @media (max-width: 640px) {
+        .hero {
+          padding: 24px;
+        }
+
+        .card {
+          padding: 20px;
+        }
+
+        .hero__actions {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body class="page page-callback">
+    <div class="page__inner">
+      <header class="hero">
+        <div class="hero__eyebrow">Step 2 · Authorization callback</div>
+        <h1>Authorization complete</h1>
+        <p class="hero__lede">
+          We stored the masked secret, captured the organization slug, and fetched a fresh
+          GraphQL snapshot so you can continue testing immediately.
+        </p>
+        <div class="hero__actions">
+          <a class="btn primary" href="/bank-ingest">Create bank ingest</a>
+          <a class="btn ghost" href="/">Back to overview</a>
+          <a class="btn secondary" href="/auth/start">Run OAuth again</a>
+        </div>
+      </header>
+
+      <nav class="app-nav" aria-label="Demo navigation">
+        <a class="app-nav__item" href="/">
+          <span>Step 1</span>
+          Flow overview &amp; status
+        </a>
+        <a class="app-nav__item is-active" href="/auth/callback">
+          <span>Step 2</span>
+          Authorization callback
+        </a>
+        <a class="app-nav__item" href="/bank-ingest">
+          <span>Step 3</span>
+          Create bank ingests
+        </a>
+      </nav>
+
+      <main class="content-grid">
+        <section class="card">
+          <div class="card__eyebrow">Captured values</div>
+          <h2>Secret &amp; organization</h2>
+          <div class="detail-grid">
+            <div>
+              <span class="status-label">Masked secret</span>
+              <span class="status-value pill">{{maskedSecret}}</span>
+            </div>
+            <div>
+              <span class="status-label">Organization slug</span>
+              <span class="status-value pill">{{organizationSlug}}</span>
+            </div>
+          </div>
+          <div class="callout">
+            Ready for API calls. Use the stored secret against <code>/graphql</code> or head
+            to the bank ingest demo.
+          </div>
+          <div class="mini-nav">
+            <a href="/org" target="_blank" rel="noreferrer">Call GraphQL JSON →</a>
+            <a href="/bank-ingest">Create a bank ingest →</a>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__eyebrow">Raw payload</div>
+          <h2>Organization response</h2>
+          <p>Fetched immediately after the token exchange for quick verification.</p>
+          <pre class="code-block">{{organizationPayload}}</pre>
+        </section>
+      </main>
+
+      <footer>
+        Need a different organization? <a href="/auth/start">Restart the OAuth flow</a>.
+      </footer>
+    </div>
+  </body>
+</html>

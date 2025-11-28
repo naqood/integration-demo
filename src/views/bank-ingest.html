@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Naqood OAuth Demo · Bank ingest</title>
+    <style>
+      :root {
+        color: #0f172a;
+        background-color: #f5f6fb;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background-color: #f5f6fb;
+      }
+
+      .page__inner {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 40px 20px 64px;
+      }
+
+      .hero {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 32px;
+      }
+
+      .hero__eyebrow {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+      }
+
+      .hero h1 {
+        font-size: clamp(2rem, 4vw, 2.6rem);
+        margin: 12px 0 8px;
+      }
+
+      .hero__lede {
+        max-width: 640px;
+        color: #475569;
+      }
+
+      .hero__actions {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 11px 22px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition: background-color 120ms ease, border-color 120ms ease;
+      }
+
+      .btn.primary {
+        background: #1d4ed8;
+        color: #fff;
+        border-color: #1d4ed8;
+      }
+
+      .btn.secondary {
+        background: transparent;
+        color: #1d4ed8;
+        border-color: #c7d2fe;
+      }
+
+      .btn.ghost {
+        background: transparent;
+        border-color: #e2e8f0;
+        color: #0f172a;
+      }
+
+      .btn:hover {
+        background-color: #1e40af;
+        color: #fff;
+      }
+
+      .btn.secondary:hover {
+        background-color: #e0e7ff;
+        color: #1d4ed8;
+      }
+
+      .btn.ghost:hover {
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      .btn.full {
+        width: 100%;
+      }
+
+      .app-nav {
+        margin: 28px 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .app-nav__item {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 18px;
+        text-decoration: none;
+        color: inherit;
+        background: #fff;
+      }
+
+      .app-nav__item span {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+      }
+
+      .app-nav__item.is-active {
+        border-color: #1d4ed8;
+        background-color: #eef2ff;
+      }
+
+      .demo-layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+        align-items: start;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 24px;
+      }
+
+      .card__eyebrow {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        margin-bottom: 8px;
+      }
+
+      .status-list {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .status-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+
+      .status-value {
+        font-weight: 600;
+      }
+
+      .callout {
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 16px 0;
+        border: 1px solid transparent;
+        background: #f1f5f9;
+      }
+
+      .callout.success {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534;
+      }
+
+      .callout.warning {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
+      }
+
+      .callout.danger {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #7f1d1d;
+      }
+
+      .mini-nav {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .mini-nav a {
+        color: #1d4ed8;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .form-card form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      fieldset {
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      fieldset[disabled] {
+        opacity: 0.65;
+      }
+
+      legend {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+      }
+
+      .form-grid label {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .form-grid input,
+      .form-grid textarea,
+      .form-grid select {
+        margin-top: 6px;
+        border-radius: 10px;
+        border: 1px solid #cbd5f5;
+        padding: 10px 12px;
+        font-size: 1rem;
+        font-family: inherit;
+        background: #fff;
+      }
+
+      .form-grid textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+
+      .form-actions {
+        margin-top: 6px;
+      }
+
+      .result-panel {
+        margin-top: 28px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+      }
+
+      .result-panel header {
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .code-block {
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 12px;
+        padding: 18px;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      footer {
+        margin-top: 40px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.9rem;
+      }
+
+      code {
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 2px 4px;
+      }
+
+      @media (max-width: 640px) {
+        .hero {
+          padding: 24px;
+        }
+
+        .card {
+          padding: 20px;
+        }
+
+        .hero__actions {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body class="page page-bank-ingest">
+    <div class="page__inner">
+      <header class="hero">
+        <div class="hero__eyebrow">Step 3 · Bank ingest</div>
+        <h1>Purchase ingest playground</h1>
+        <p class="hero__lede">
+          Use the captured organization slug and secret to create a single purchase bank
+          ingest with Naqood account codes <strong>1310</strong> and <strong>1320</strong>.
+        </p>
+        <div class="hero__actions">
+          <a class="btn primary" href="/bank-ingest">Refresh form</a>
+          <a class="btn ghost" href="/">Back to overview</a>
+          <a class="btn secondary" href="/auth/start">Capture new credential</a>
+        </div>
+      </header>
+
+      <nav class="app-nav" aria-label="Demo navigation">
+        <a class="app-nav__item" href="/">
+          <span>Step 1</span>
+          Flow overview &amp; status
+        </a>
+        <a class="app-nav__item" href="/auth/callback">
+          <span>Step 2</span>
+          Authorization callback
+        </a>
+        <a class="app-nav__item is-active" href="/bank-ingest">
+          <span>Step 3</span>
+          Create bank ingests
+        </a>
+      </nav>
+
+      <main class="demo-layout">
+        <section class="card">
+          <div class="card__eyebrow">Context</div>
+          <h2>Prepare the payload</h2>
+          <p>
+            Provide a realistic transaction (bank account, amount, optional metadata) and
+            we will call <code>createBankIngestBulk</code> using the secret stored from your
+            most recent OAuth run.
+          </p>
+          {{statusBlock}}
+          {{errorBlock}}
+          <ul class="status-list">
+            <li>
+              <span class="status-label">Allowed purchase accounts</span>
+              <span class="status-value">1310 · Office supplies &mdash; 1320 · Software</span>
+            </li>
+            <li>
+              <span class="status-label">Helper tips</span>
+              <span class="status-value">
+                Amount accepts decimals, transaction date defaults to today, foreign ID is
+                optional.
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="card form-card">
+          <div class="card__eyebrow">Create bank ingest</div>
+          <h2>Transaction builder</h2>
+          <form method="POST" action="/bank-ingest">
+            <fieldset {{fieldsetDisabled}}>
+              <legend>Transaction details</legend>
+              <div class="form-grid">
+                <label>
+                  Bank account ID
+                  <input type="text" name="bankAccountId" required value="{{bankAccountId}}" />
+                </label>
+                <label>
+                  Amount
+                  <input type="text" name="amount" required value="{{amount}}" />
+                </label>
+                <label>
+                  Currency
+                  <input type="text" name="currency" required value="{{currency}}" />
+                </label>
+                <label>
+                  Description
+                  <input type="text" name="description" value="{{description}}" />
+                </label>
+                <label>
+                  Foreign ID
+                  <input type="text" name="foreignId" value="{{foreignId}}" />
+                </label>
+                <label>
+                  Transaction date
+                  <input type="date" name="transactionDate" value="{{transactionDate}}" />
+                </label>
+                <label>
+                  Purchase account code
+                  <select name="accountCode" required>
+                    {{accountOptions}}
+                  </select>
+                </label>
+                <label>
+                  Note
+                  <textarea name="note" rows="3" cols="40">{{note}}</textarea>
+                </label>
+              </div>
+              <div class="form-actions">
+                <button class="btn primary full" type="submit">Create bank ingest</button>
+              </div>
+            </fieldset>
+          </form>
+        </section>
+      </main>
+
+      {{resultBlock}}
+
+      <footer>
+        Need a fresh secret? <a href="/auth/start">Restart the OAuth flow</a> before posting
+        again.
+      </footer>
+    </div>
+  </body>
+</html>
