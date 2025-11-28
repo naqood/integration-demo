@@ -193,6 +193,56 @@
         gap: 8px;
       }
 
+      .role-picker {
+        margin-top: 20px;
+      }
+
+      .role-card-list {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .role-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .role-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .role-card__slug {
+        display: block;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .role-card__tag {
+        font-size: 0.75rem;
+        color: #15803d;
+        background: #dcfce7;
+        border-radius: 999px;
+        padding: 4px 8px;
+      }
+
+      .role-card--active {
+        border-color: #1d4ed8;
+        background: #eef2ff;
+      }
+
       .resources {
         margin-top: 28px;
       }
@@ -256,7 +306,7 @@
           callback payload, and then push a purchase bank ingest.
         </p>
         <div class="hero__actions">
-          <a class="btn primary" href="/auth/start">Start OAuth flow</a>
+          <a class="btn primary" href="{{roleStartLink}}">Start OAuth flow</a>
           <a class="btn secondary" href="/bank-ingest">Open bank ingest form</a>
         </div>
       </header>
@@ -282,8 +332,8 @@
           <h2>What we know so far</h2>
           <ul class="status-list">
             <li>
-              <span class="status-label">Requested role</span>
-              <span class="status-value">{{requestedRole}}</span>
+              <span class="status-label">Last requested role</span>
+              <span class="status-value">{{roleSummary}}</span>
             </li>
             <li>
               <span class="status-label">Latest organization slug</span>
@@ -308,10 +358,10 @@
               <div class="step-title">Authorize with Naqood</div>
               <p>
                 Launch the hosted OAuth page and log in with an organization that has the
-                <strong>{{requestedRole}}</strong> role.
+                <strong>{{roleSummary}}</strong> role (or choose a different one below).
               </p>
               <div class="step-actions">
-                <a class="btn primary" href="/auth/start">Start OAuth flow</a>
+                <a class="btn primary" href="{{roleStartLink}}">Start OAuth flow</a>
               </div>
             </li>
             <li>
@@ -337,6 +387,15 @@
           </ol>
         </section>
       </main>
+
+      <section class="card role-picker">
+        <div class="card__eyebrow">Available roles</div>
+        <h2>Choose a role for OAuth</h2>
+        <p>Pick the profile you want to test. Each link starts the flow with the correct role slug.</p>
+        <ul class="role-card-list">
+          {{roleCards}}
+        </ul>
+      </section>
 
       <section class="card resources">
         <div class="card__eyebrow">Helpful shortcuts</div>

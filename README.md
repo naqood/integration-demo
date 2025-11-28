@@ -32,9 +32,16 @@ Required variables:
 | `CLIENT_ID`       | Your OAuth client ID.                                                                             |
 | `CLIENT_SECRET`   | The client secret (if issued). Leave blank only if the app truly has no secret.                   |
 | `REDIRECT_URI`    | Must match one of the registered redirect URIs. Default is `http://localhost:4001/auth/callback`. |
-| `REQUESTED_ROLE`  | Role slug to request during authorization (e.g. `admin`).                                         |
 | `NAQOOD_BASE_URL` | Base URL of the Naqood app (defaults to `https://app.naqood.ae`).                                 |
 | `PORT`            | Local port for the Express server (default `4001`).                                               |
+
+The demo includes a role picker on the home page so you can start the OAuth flow as any of the following:
+
+- `admin` – Administrator (full organization access)
+- `member` – Member (basic access + purchase creation)
+- `accountant` – Accountant (reporting + journals)
+- `billing` – Billing Admin (subscription and billing settings)
+- `sales` – Sales Person (invoices + sales orders)
 
 During the token exchange the server now responds with the `organizationSlug` associated with the issued secret, so you no longer need to hard-code it in the demo.
 
@@ -44,7 +51,7 @@ During the token exchange the server now responds with the `organizationSlug` as
 npm start
 ```
 
-Visit `http://localhost:4001` and click **Start OAuth Flow**. After approving the request in Naqood, you will land on `/auth/callback`, which exchanges the code for an API secret, stores it (plus the returned `organizationSlug`) in memory, and immediately fetches the organization details for you. Use the **Call GraphQL** link to re-run the sample `organization` query with the stored secret at any time.
+Visit `http://localhost:4001`, pick one of the available roles, and click **Start OAuth Flow** on either the hero button or the corresponding role card. After approving the request in Naqood, you will land on `/auth/callback`, which exchanges the code for an API secret, stores it (plus the returned `organizationSlug`) in memory, and immediately fetches the organization details for you. Use the **Call GraphQL** link to re-run the sample `organization` query with the stored secret at any time.
 
 The console logs will show helpful debug messages, but the secret itself is only kept in memory so you can manually inspect or reuse it during the session.
 

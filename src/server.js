@@ -19,18 +19,64 @@ const config = {
   clientId: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET || '',
   redirectUri: process.env.REDIRECT_URI,
-  requestedRole: process.env.REQUESTED_ROLE || 'admin',
   baseUrl: process.env.NAQOOD_BASE_URL || 'https://app.naqood.ae',
   port: Number(process.env.PORT || 4001),
 };
+
+const ROLE_OPTIONS = [
+  {
+    value: 'admin',
+    label: 'Administrator',
+    description: 'Full access to organization resources.',
+  },
+  {
+    value: 'member',
+    label: 'Member',
+    description: 'Basic organization member access and ability to create purchases.',
+  },
+  {
+    value: 'accountant',
+    label: 'Accountant',
+    description: 'View financial reports and create journal entries.',
+  },
+  {
+    value: 'billing',
+    label: 'Billing Admin',
+    description: 'Manage billing settings and subscription.',
+  },
+  {
+    value: 'sales',
+    label: 'Sales Person',
+    description: 'View invoices and create sales orders.',
+  },
+];
+
+const ROLE_LOOKUP = new Map(ROLE_OPTIONS.map((role) => [role.value, role]));
 
 const PURCHASE_ACCOUNT_CODES = [1310, 1320];
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const pendingStates = new Map();
 let latestCredential = null;
+let lastRequestedRole = ROLE_OPTIONS[0].value;
 
-function saveState(state, verifier) {
-  pendingStates.set(state, { verifier, createdAt: Date.now() });
+function resolveRole(value) {
+  if (!value) {
+    return ROLE_OPTIONS[0].value;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  return ROLE_LOOKUP.has(normalized) ? normalized : ROLE_OPTIONS[0].value;
+}
+
+function getRoleMeta(value) {
+  return ROLE_LOOKUP.get(value) || ROLE_LOOKUP.get(ROLE_OPTIONS[0].value);
+}
+
+function getActiveRole() {
+  return latestCredential?.requestedRole || lastRequestedRole || ROLE_OPTIONS[0].value;
+}
+
+function saveState(state, verifier, requestedRole) {
+  pendingStates.set(state, { verifier, requestedRole, createdAt: Date.now() });
 }
 
 function consumeState(state) {
@@ -40,14 +86,14 @@ function consumeState(state) {
   if (Date.now() - entry.createdAt > STATE_TTL_MS) {
     return null;
   }
-  return entry.verifier;
+  return entry;
 }
 
-function buildAuthorizeUrl(state, challenge) {
+function buildAuthorizeUrl(state, challenge, role) {
   const authorizeUrl = new URL('/oauth/authorize', config.baseUrl);
   authorizeUrl.searchParams.set('client_id', config.clientId);
   authorizeUrl.searchParams.set('redirect_uri', config.redirectUri);
-  authorizeUrl.searchParams.set('role', config.requestedRole);
+  authorizeUrl.searchParams.set('role', role);
   authorizeUrl.searchParams.set('code_challenge', challenge);
   authorizeUrl.searchParams.set('code_challenge_method', 'S256');
   authorizeUrl.searchParams.set('state', state);
@@ -142,6 +188,29 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function buildRoleCards(activeRole) {
+  return ROLE_OPTIONS.map((role) => {
+    const isActive = role.value === activeRole;
+    const selectedTag = isActive
+      ? '<span class="role-card__tag">Selected</span>'
+      : '';
+    const startLink = `/auth/start?role=${encodeURIComponent(role.value)}`;
+    return `
+      <li class="role-card${isActive ? ' role-card--active' : ''}">
+        <div class="role-card__header">
+          <div>
+            <strong>${escapeHtml(role.label)}</strong>
+            <span class="role-card__slug">${escapeHtml(role.value)}</span>
+          </div>
+          ${selectedTag}
+        </div>
+        <p>${escapeHtml(role.description)}</p>
+        <a class="btn secondary" href="${escapeHtml(startLink)}">Use ${escapeHtml(role.label)}</a>
+      </li>
+    `;
+  }).join('');
+}
+
 async function createBankIngestTransactions(secretKey, slug, transactions) {
   const graphqlUrl = new URL('/graphql', config.baseUrl);
   const mutation = `
@@ -191,7 +260,13 @@ async function createBankIngestTransactions(secretKey, slug, transactions) {
   return payload.data.createBankIngestBulk.bankIngests;
 }
 
-function renderBankIngestPage({ slug, formValues = {}, result, errorMessage } = {}) {
+function renderBankIngestPage({
+  slug,
+  formValues = {},
+  result,
+  errorMessage,
+  roleValue,
+} = {}) {
   const defaults = {
     currency: 'AED',
     accountCode: String(PURCHASE_ACCOUNT_CODES[0]),
@@ -199,8 +274,13 @@ function renderBankIngestPage({ slug, formValues = {}, result, errorMessage } = 
   };
   const values = { ...defaults, ...formValues };
   const disabled = !slug;
+  const activeRole = roleValue || getActiveRole();
+  const roleStartLink = `/auth/start?role=${encodeURIComponent(activeRole)}`;
+  const escapedRoleLink = escapeHtml(roleStartLink);
+  const activeRoleMeta = getRoleMeta(activeRole);
+  const escapedRoleLabel = escapeHtml(activeRoleMeta.label);
   const statusBlock = disabled
-    ? '<div class="callout warning"><p>Run the OAuth flow to capture a secret and organization slug before creating bank ingests.</p><div class="mini-nav"><a href="/auth/start">Start OAuth flow →</a><a href="/">Back to overview →</a></div></div>'
+    ? `<div class="callout warning"><p>Run the OAuth flow to capture a secret and organization slug before creating bank ingests.</p><div class="mini-nav"><a href="${escapedRoleLink}">Start OAuth with ${escapedRoleLabel} →</a><a href="/">Back to overview →</a></div></div>`
     : `<div class="callout success"><strong>Using organization slug</strong> <code>${escapeHtml(slug)}</code>. Secrets stay in memory until you restart this server.</div>`;
   const errorBlock = errorMessage
     ? `<div class="callout danger"><strong>Request failed:</strong> ${escapeHtml(errorMessage)}</div>`
@@ -226,6 +306,7 @@ function renderBankIngestPage({ slug, formValues = {}, result, errorMessage } = 
     transactionDate: escapeHtml(values.transactionDate || ''),
     note: escapeHtml(values.note || ''),
     accountOptions,
+    roleStartLink: escapedRoleLink,
   });
 }
 
@@ -244,23 +325,32 @@ app.get('/', (req, res) => {
     latestCredential && latestCredential.organizationSlug
       ? latestCredential.organizationSlug
       : 'not set yet';
+  const currentRoleValue = getActiveRole();
+  const currentRoleMeta = getRoleMeta(currentRoleValue);
+  const roleSummary = `${currentRoleMeta.label} (${currentRoleMeta.value})`;
+  const roleCards = buildRoleCards(currentRoleValue);
+  const roleStartLink = `/auth/start?role=${encodeURIComponent(currentRoleValue)}`;
 
   res
     .type('html')
     .send(
       renderTemplate('home', {
-        requestedRole: escapeHtml(config.requestedRole),
+        roleSummary: escapeHtml(roleSummary),
         slugSummary: escapeHtml(slugSummary),
         secretSummary: escapeHtml(secretSummary),
+        roleCards,
+        roleStartLink: escapeHtml(roleStartLink),
       }),
     );
 });
 
 app.get('/auth/start', (req, res) => {
+  const requestedRole = resolveRole(req.query.role);
   const { verifier, challenge } = createPKCECodes();
   const state = crypto.randomBytes(16).toString('hex');
-  saveState(state, verifier);
-  const redirectUrl = buildAuthorizeUrl(state, challenge);
+  lastRequestedRole = requestedRole;
+  saveState(state, verifier, requestedRole);
+  const redirectUrl = buildAuthorizeUrl(state, challenge, requestedRole);
   res.redirect(302, redirectUrl);
 });
 
@@ -275,12 +365,14 @@ app.get('/auth/callback', async (req, res) => {
     return res.status(400).send('Missing code or state');
   }
 
-  const verifier = consumeState(state);
-  if (!verifier) {
+  const stateEntry = consumeState(state);
+  if (!stateEntry) {
     return res
       .status(400)
       .send('Unknown or expired state parameter. Restart the flow.');
   }
+
+  const { verifier, requestedRole } = stateEntry;
 
   try {
     const tokenResult = await exchangeAuthorizationCode(code, verifier);
@@ -289,6 +381,7 @@ app.get('/auth/callback', async (req, res) => {
       organizationSlug: tokenResult.organizationSlug,
       tokenType: tokenResult.tokenType,
       issuedAt: Date.now(),
+      requestedRole: requestedRole || ROLE_OPTIONS[0].value,
     };
 
     let orgPayload = null;
@@ -307,6 +400,7 @@ app.get('/auth/callback', async (req, res) => {
       };
     }
 
+    const roleStartLink = `/auth/start?role=${encodeURIComponent(getActiveRole())}`;
     res
       .type('html')
       .send(
@@ -316,6 +410,7 @@ app.get('/auth/callback', async (req, res) => {
             latestCredential.organizationSlug || 'not provided',
           ),
           organizationPayload: escapeHtml(JSON.stringify(orgPayload, null, 2)),
+          roleStartLink: escapeHtml(roleStartLink),
         }),
       );
   } catch (tokenError) {
@@ -348,6 +443,7 @@ app.get('/bank-ingest', (req, res) => {
   res.type('html').send(
     renderBankIngestPage({
       slug,
+      roleValue: getActiveRole(),
     }),
   );
 });
@@ -363,6 +459,7 @@ app.post('/bank-ingest', async (req, res) => {
           slug: null,
           formValues: req.body,
           errorMessage: 'Run the OAuth flow first so we have a secret and organization.',
+          roleValue: getActiveRole(),
         }),
       );
   }
@@ -388,6 +485,7 @@ app.post('/bank-ingest', async (req, res) => {
           slug,
           formValues: req.body,
           errorMessage: 'bankAccountId, amount, and currency are required.',
+          roleValue: getActiveRole(),
         }),
       );
   }
@@ -402,6 +500,7 @@ app.post('/bank-ingest', async (req, res) => {
           slug,
           formValues: req.body,
           errorMessage: 'Account code must be 1310 or 1320 for purchases.',
+          roleValue: getActiveRole(),
         }),
       );
   }
@@ -428,6 +527,7 @@ app.post('/bank-ingest', async (req, res) => {
           transactionDate: transaction.transactionDate,
         },
         result,
+        roleValue: getActiveRole(),
       }),
     );
   } catch (error) {
@@ -436,6 +536,7 @@ app.post('/bank-ingest', async (req, res) => {
         slug,
         formValues: req.body,
         errorMessage: error.message,
+        roleValue: getActiveRole(),
       }),
     );
   }
