@@ -330,8 +330,8 @@
         <div class="hero__eyebrow">Step 3 · Bank ingest</div>
         <h1>Purchase ingest playground</h1>
         <p class="hero__lede">
-          Use the captured organization slug and secret to create a single purchase bank
-          ingest with Naqood account codes <strong>1310</strong> and <strong>1320</strong>.
+          Use the captured organization slug and secret to create a single bank ingest transaction.
+          Choose between bank account ID or external bank account ID for identification.
         </p>
         <div class="hero__actions">
           <a class="btn primary" href="/bank-ingest">Refresh form</a>
@@ -368,14 +368,17 @@
           {{errorBlock}}
           <ul class="status-list">
             <li>
-              <span class="status-label">Allowed purchase accounts</span>
-              <span class="status-value">1310 · Office supplies &mdash; 1320 · Software</span>
+              <span class="status-label">Account identification</span>
+              <span class="status-value">Choose between bank account ID or external bank account ID</span>
+            </li>
+            <li>
+              <span class="status-label">Account codes</span>
+              <span class="status-value">Optional - pre-fills suggested journal entries (1310/1320 available)</span>
             </li>
             <li>
               <span class="status-label">Helper tips</span>
               <span class="status-value">
-                Amount accepts decimals, transaction date defaults to today, foreign ID is
-                optional.
+                Amount accepts decimals, transaction date defaults to today, foreign ID provides idempotency.
               </span>
             </li>
           </ul>
@@ -388,10 +391,23 @@
             <fieldset {{fieldsetDisabled}}>
               <legend>Transaction details</legend>
               <div class="form-grid">
-                <label>
-                  Bank account ID
-                  <input type="text" name="bankAccountId" required value="{{bankAccountId}}" />
-                </label>
+                <fieldset style="border: none; padding: 0; margin: 0;">
+                  <legend style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Bank account identifier</legend>
+                  <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                      <input type="radio" name="identifierType" value="bankAccountId" {{bankAccountIdChecked}} required />
+                      Use bank account ID
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                      <input type="radio" name="identifierType" value="externalBankAccountId" {{externalBankAccountIdChecked}} required />
+                      Use external bank account ID
+                    </label>
+                  </div>
+                  <label style="display: block;">
+                    <span id="accountIdLabel">{{accountIdLabel}}</span>
+                    <input type="text" name="accountId" required value="{{accountId}}" />
+                  </label>
+                </fieldset>
                 <label>
                   Amount
                   <input type="text" name="amount" required value="{{amount}}" />
@@ -423,6 +439,22 @@
                   <textarea name="note" rows="3" cols="40">{{note}}</textarea>
                 </label>
               </div>
+
+              <fieldset style="border: 1px solid #cbd5f5; border-radius: 10px; padding: 16px; margin-top: 20px;">
+                <legend style="font-size: 0.95rem; font-weight: 600; padding: 0 8px;">Optional: Update bank account balance</legend>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 8px 0 16px;">Keep Naqood's running balance aligned with your statement balance.</p>
+                <div class="form-grid">
+                  <label>
+                    External balance
+                    <input type="text" name="externalBalance" value="{{externalBalance}}" placeholder="e.g., 52000.98" />
+                  </label>
+                  <label>
+                    Balance date
+                    <input type="datetime-local" name="externalBalanceDate" value="{{externalBalanceDate}}" />
+                  </label>
+                </div>
+              </fieldset>
+
               <div class="form-actions">
                 <button class="btn primary full" type="submit">Create bank ingest</button>
               </div>

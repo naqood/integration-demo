@@ -211,7 +211,7 @@ function buildRoleCards(activeRole) {
   }).join('');
 }
 
-async function createBankIngestTransactions(secretKey, slug, transactions) {
+async function createBankIngestTransactions(secretKey, slug, transactions, bankAccountBalances = []) {
   const graphqlUrl = new URL('/graphql', config.baseUrl);
   const mutation = `
     mutation CreateBankIngests($input: CreateBankIngestBulkInput!) {
@@ -222,12 +222,22 @@ async function createBankIngestTransactions(secretKey, slug, transactions) {
           currency
           description
           transactionDate
+          createdAt
           reconciled
           matchType
+          matchEntityId
+          matchDetails
           note
+          archived
           bankAccount {
             id
             name
+            bankName
+            currency
+          }
+          journalEntry {
+            id
+            number
           }
         }
       }
@@ -246,6 +256,7 @@ async function createBankIngestTransactions(secretKey, slug, transactions) {
         input: {
           slug,
           transactions,
+          bankAccountBalances: bankAccountBalances.length > 0 ? bankAccountBalances : undefined,
         },
       },
     }),
@@ -269,8 +280,9 @@ function renderBankIngestPage({
 } = {}) {
   const defaults = {
     currency: 'AED',
-    accountCode: String(PURCHASE_ACCOUNT_CODES[0]),
+    accountCode: '',
     transactionDate: new Date().toISOString().slice(0, 10),
+    identifierType: 'bankAccountId',
   };
   const values = { ...defaults, ...formValues };
   const disabled = !slug;
@@ -288,23 +300,37 @@ function renderBankIngestPage({
   const resultBlock = result
     ? `<section class="result-panel"><header>Latest ingest response</header><pre class="code-block">${escapeHtml(JSON.stringify(result, null, 2))}</pre><div class="mini-nav"><a href="/bank-ingest">Create another ingest →</a><a href="/">Back to overview →</a></div></section>`
     : '';
-  const accountOptions = PURCHASE_ACCOUNT_CODES.map((code) => {
+
+  const isBankAccountId = values.identifierType === 'bankAccountId';
+  const bankAccountIdChecked = isBankAccountId ? 'checked' : '';
+  const externalBankAccountIdChecked = !isBankAccountId ? 'checked' : '';
+  const accountIdLabel = isBankAccountId ? 'Bank account ID' : 'External bank account ID';
+  const accountId = isBankAccountId ? (values.bankAccountId || '') : (values.externalBankAccountId || '');
+
+  let accountOptions = PURCHASE_ACCOUNT_CODES.map((code) => {
     const selected = String(values.accountCode) === String(code) ? ' selected' : '';
     return `<option value="${code}"${selected}>Purchase account ${code}</option>`;
   }).join('');
+  // Add empty option for no account code
+  accountOptions = `<option value="">No account code (optional)</option>${accountOptions}`;
 
   return renderTemplate('bank-ingest', {
     statusBlock,
     errorBlock,
     resultBlock,
     fieldsetDisabled: disabled ? 'disabled' : '',
-    bankAccountId: escapeHtml(values.bankAccountId || ''),
+    bankAccountIdChecked,
+    externalBankAccountIdChecked,
+    accountIdLabel,
+    accountId: escapeHtml(accountId),
     amount: escapeHtml(values.amount || ''),
     currency: escapeHtml(values.currency || ''),
     description: escapeHtml(values.description || ''),
     foreignId: escapeHtml(values.foreignId || ''),
     transactionDate: escapeHtml(values.transactionDate || ''),
     note: escapeHtml(values.note || ''),
+    externalBalance: escapeHtml(values.externalBalance || ''),
+    externalBalanceDate: escapeHtml(values.externalBalanceDate || ''),
     accountOptions,
     roleStartLink: escapedRoleLink,
   });
@@ -466,7 +492,8 @@ app.post('/bank-ingest', async (req, res) => {
 
   const secretKey = latestCredential.secretKey;
   const {
-    bankAccountId,
+    identifierType,
+    accountId,
     amount,
     currency,
     description,
@@ -474,9 +501,11 @@ app.post('/bank-ingest', async (req, res) => {
     transactionDate,
     note,
     accountCode,
+    externalBalance,
+    externalBalanceDate,
   } = req.body;
 
-  if (!bankAccountId || !amount || !currency) {
+  if (!accountId || !amount || !currency) {
     return res
       .status(400)
       .type('html')
@@ -484,14 +513,13 @@ app.post('/bank-ingest', async (req, res) => {
         renderBankIngestPage({
           slug,
           formValues: req.body,
-          errorMessage: 'bankAccountId, amount, and currency are required.',
+          errorMessage: 'Account ID, amount, and currency are required.',
           roleValue: getActiveRole(),
         }),
       );
   }
 
-  const parsedAccountCode = Number(accountCode);
-  if (!PURCHASE_ACCOUNT_CODES.includes(parsedAccountCode)) {
+  if (!['bankAccountId', 'externalBankAccountId'].includes(identifierType)) {
     return res
       .status(400)
       .type('html')
@@ -499,14 +527,28 @@ app.post('/bank-ingest', async (req, res) => {
         renderBankIngestPage({
           slug,
           formValues: req.body,
-          errorMessage: 'Account code must be 1310 or 1320 for purchases.',
+          errorMessage: 'Invalid identifier type selected.',
+          roleValue: getActiveRole(),
+        }),
+      );
+  }
+
+  const parsedAccountCode = accountCode ? Number(accountCode) : undefined;
+  if (accountCode && isNaN(parsedAccountCode)) {
+    return res
+      .status(400)
+      .type('html')
+      .send(
+        renderBankIngestPage({
+          slug,
+          formValues: req.body,
+          errorMessage: 'Account code must be a valid number.',
           roleValue: getActiveRole(),
         }),
       );
   }
 
   const transaction = {
-    bankAccountId: bankAccountId.trim(),
     amount: amount.trim(),
     currency: currency.trim().toUpperCase(),
     description: description?.trim() || undefined,
@@ -516,15 +558,44 @@ app.post('/bank-ingest', async (req, res) => {
     accountCode: parsedAccountCode,
   };
 
+  // Add the appropriate account identifier based on type
+  if (identifierType === 'bankAccountId') {
+    transaction.bankAccountId = accountId.trim();
+  } else {
+    transaction.externalBankAccountId = accountId.trim();
+  }
+
+  // Build bank account balances if provided
+  const bankAccountBalances = [];
+  if (externalBalance && externalBalanceDate) {
+    const balanceUpdate = {
+      externalBalance: externalBalance.trim(),
+      externalBalanceDate: new Date(externalBalanceDate).toISOString(),
+    };
+
+    // Add the appropriate account identifier for balance update
+    if (identifierType === 'bankAccountId') {
+      balanceUpdate.bankAccountId = accountId.trim();
+    } else {
+      balanceUpdate.externalBankAccountId = accountId.trim();
+    }
+
+    bankAccountBalances.push(balanceUpdate);
+  }
+
   try {
-    const result = await createBankIngestTransactions(secretKey, slug, [transaction]);
+    const result = await createBankIngestTransactions(secretKey, slug, [transaction], bankAccountBalances);
     res.type('html').send(
       renderBankIngestPage({
         slug,
         formValues: {
+          identifierType,
+          accountId,
           currency: transaction.currency,
-          accountCode: transaction.accountCode,
+          accountCode: accountCode || '',
           transactionDate: transaction.transactionDate,
+          externalBalance,
+          externalBalanceDate,
         },
         result,
         roleValue: getActiveRole(),
