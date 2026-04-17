@@ -1,6 +1,6 @@
 # Naqood OAuth Demo App
 
-A minimal Express application that demonstrates how to complete the Naqood OAuth 2.0 Authorization Code flow with PKCE, exchange the authorization code for an organization API secret, and call the GraphQL API using that secret.
+A minimal Express application that demonstrates how to complete the [Naqood](https://naqood.ae/) OAuth 2.0 Authorization Code flow with PKCE, exchange the authorization code for an organization API secret, and call the GraphQL API using that secret.
 
 > **Note:** This project is meant for manual testing in local or staging environments. Do not deploy it as-is to production.
 
